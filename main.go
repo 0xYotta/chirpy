@@ -21,9 +21,16 @@ func main() {
 		Addr:    ":" + port,
 	}
 
-	mux.Handle("/", http.FileServer(http.Dir(filepathRoot)))
+	mux.HandleFunc("/healthz", HandleHealthz)
+	mux.Handle("/app/", http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
 
 	// logs
 	log.Printf("Serving on port: %v", port)
 	log.Fatal(server.ListenAndServe())
+}
+
+func HandleHealthz(resp http.ResponseWriter, req *http.Request) {
+	resp.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	resp.WriteHeader(http.StatusOK)
+	resp.Write([]byte("OK"))
 }
