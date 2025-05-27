@@ -1,19 +1,29 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 )
 
 func main() {
-	fmt.Println("ready to go!")
+	// consts
+	const port = "8080"
+	const filepathRoot = "."
 
-	mux := http.NewServeMux()
+	// mux & server
+	mux := http.NewServeMux() // I: returning pointer so no need to make it manually
 
-	server := http.Server{
+	server := &http.Server{
+		// NOTE: using & because structure is huge.
+		// it's idiomatic to use pointers in this cases
+
 		Handler: mux,
-		Addr:    ":8080",
+		Addr:    ":" + port,
 	}
 
-	server.ListenAndServe()
+	mux.Handle("/", http.FileServer(http.Dir(filepathRoot)))
+
+	// logs
+	log.Printf("Serving on port: %v", port)
+	log.Fatal(server.ListenAndServe())
 }
