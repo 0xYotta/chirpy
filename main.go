@@ -1,36 +1,47 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"sync/atomic"
 )
 
-func main() {
-	// consts
-	const port = "8080"
-	const filepathRoot = "."
-
-	// mux & server
-	mux := http.NewServeMux() // I: returning pointer so no need to make it manually
-
-	server := &http.Server{
-		// NOTE: using & because structure is huge.
-		// it's idiomatic to use pointers in this cases
-
-		Handler: mux,
-		Addr:    ":" + port,
-	}
-
-	mux.HandleFunc("/healthz", HandleHealthz)
-	mux.Handle("/app/", http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
-
-	// logs
-	log.Printf("Serving on port: %v", port)
-	log.Fatal(server.ListenAndServe())
+type apiConfig struct {
+	fileserverHits atomic.Int32
 }
 
-func HandleHealthz(resp http.ResponseWriter, req *http.Request) {
-	resp.Header().Add("Content-Type", "text/plain; charset=utf-8")
-	resp.WriteHeader(http.StatusOK)
-	resp.Write([]byte("OK"))
+func main() {
+	const filepathRoot = "."
+	const port = "8080"
+
+	apiCfg := apiConfig{
+		fileserverHits: atomic.Int32{},
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
+	mux.HandleFunc("/healthz", handlerReadiness)
+	mux.HandleFunc("/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("/reset", apiCfg.handlerReset)
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: mux,
+	}
+
+	log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)
+	log.Fatal(srv.ListenAndServe())
+}
+
+func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits.Load())))
+}
+
+func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cfg.fileserverHits.Add(1)
+		next.ServeHTTP(w, r)
+	})
 }
