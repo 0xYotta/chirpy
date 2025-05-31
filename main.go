@@ -16,6 +16,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	platform       string
+	jwtSecret      string
 }
 
 func main() {
@@ -25,6 +26,11 @@ func main() {
 	if platform == "" {
 		log.Fatal("PLATFORM must be set")
 	}
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		log.Fatal("SECRET must be set")
+	}
+
 	const filepathRoot = "."
 	const port = "8080"
 
