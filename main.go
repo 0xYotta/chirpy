@@ -17,6 +17,7 @@ type apiConfig struct {
 	db             *database.Queries
 	platform       string
 	jwtSecret      string
+	polkaAPIKey    string
 }
 
 func main() {
@@ -31,6 +32,11 @@ func main() {
 		log.Fatal("SECRET must be set")
 	}
 
+	polkaAPIKEY := os.Getenv("POLKA_KEY")
+	if polkaAPIKEY == "" {
+		log.Fatal("POLKA_KEY must be set")
+	}
+
 	const filepathRoot = "."
 	const port = "8080"
 
@@ -38,6 +44,7 @@ func main() {
 		fileserverHits: atomic.Int32{},
 		db:             getDb(dbURL),
 		platform:       platform,
+		polkaAPIKey:    polkaAPIKEY,
 	}
 
 	mux := http.NewServeMux()

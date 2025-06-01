@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/0xYotta/chirpy/internal/auth"
 	"github.com/google/uuid"
 )
 
@@ -13,6 +14,16 @@ func (cfg *apiConfig) handlerUpgradeUserToRed(w http.ResponseWriter, r *http.Req
 		Data  struct {
 			UserID string `json:"user_id"`
 		} `json:"data"`
+	}
+
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "no auth header", err)
+		return
+	}
+	if apiKey != cfg.polkaAPIKey {
+		respondWithError(w, 401, "invalid api key", err)
+		return
 	}
 
 	defer r.Body.Close()
@@ -37,6 +48,5 @@ func (cfg *apiConfig) handlerUpgradeUserToRed(w http.ResponseWriter, r *http.Req
 		respondWithError(w, http.StatusNotFound, "User not found", err)
 		return
 	}
-
 	w.WriteHeader(http.StatusNoContent)
 }
